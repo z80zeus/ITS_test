@@ -1,4 +1,4 @@
-#include <algorithm>
+#include <functional>
 #include <unordered_map>
 
 #include "concordance.h"
@@ -6,6 +6,58 @@
 using namespace std;
 using namespace ist;
 
+/**
+ * @brief Обобщённый компаратор "на меньше" любого поля структуры wordCharacter.
+ * @tparam FieldType Тип поля по которому будет производиться сортировка. Нужен для описания следующего шаблонного параметра.
+ * @tparam Field  Указатель на поле по которому будет производиться сортировка.
+ * @param wordStatL "Левая" сравниваемая структура wordCharacter.
+ * @param wordStatR "Правая" сравниваемая структура wordCharacter.
+ * @return true если поле Field строго меньше у левой структуры. false - в противном случае.
+ * После типизации полем, все компараторы имеют одинаковую сигнатуру (wordStatL, wordStatR) и могут быть помещены в
+ * качестве функциональных объектов в один контейнер.
+ */
+template<typename FieldType, FieldType wordCharacter::* Field>
+bool
+lessComparator(const wordCharacter& wordStatL, const wordCharacter& wordStatR) {
+  return wordStatL.*Field < wordStatR.*Field;
+}
+
+/**
+ * @brief Обобщённый компаратор "на больше" любого поля структуры wordCharacter.
+ * @tparam FieldType Тип поля по которому будет производиться сортировка. Нужен для описания следующего шаблонного параметра.
+ * @tparam Field  Указатель на поле по которому будет производиться сортировка.
+ * @param wordStatL "Левая" сравниваемая структура wordCharacter.
+ * @param wordStatR "Правая" сравниваемая структура wordCharacter.
+ * @return true если поле Field строго меньше у левой структуры. false - в противном случае.
+ * После типизации полем, все компараторы имеют одинаковую сигнатуру (wordStatL, wordStatR) и могут быть помещены в
+ * качестве функциональных объектов в один контейнер.
+ */
+template<typename FieldType, FieldType wordCharacter::* Field>
+bool
+greaterComparator(const wordCharacter& wordStatL, const wordCharacter& wordStatR) {
+  return wordStatL.*Field > wordStatR.*Field;
+}
+
+/**
+ * Словарь отображения режимов сортировки в соответствующий компаратор.
+ */
+static unordered_map<string, function<bool(const wordCharacter&,const wordCharacter&)>> comparators ({
+    {"word asc",         lessComparator < decltype(wordCharacter::word),       &wordCharacter::word >},
+    {"count asc",        lessComparator < decltype(wordCharacter::count), &wordCharacter::count >},
+    {"fstPosition asc",  lessComparator < decltype(wordCharacter::fstPosition), &wordCharacter::fstPosition >},
+    {"avgDistance asc",  lessComparator < decltype(wordCharacter::avgDistance), &wordCharacter::avgDistance >},
+
+    {"word desc", greaterComparator < decltype(wordCharacter::word),        &wordCharacter::word >},
+    {"count desc", greaterComparator < decltype(wordCharacter::count), &wordCharacter::count >},
+    {"fstPosition desc", greaterComparator < decltype(wordCharacter::fstPosition), &wordCharacter::fstPosition >},
+    {"avgDistance desc", greaterComparator < decltype(wordCharacter::avgDistance), &wordCharacter::avgDistance >},
+});
+
+/**
+ * @brief Нормализация строки: очистка от знаков пунктуации и преобразование к нижнему регистру.
+ * @param word Ссылка на строку, над которой будут производиться преобразования.
+ * @return Ссылка на переданную, обработанную строку.
+ */
 string &
 normaliseWord(std::string &word) {
   erase_if(word, ::ispunct);
@@ -75,79 +127,14 @@ ist::operator<<(ostream &os, const concordance &concor) {
 }
 
 concordance &
-sortByWord(concordance &concor, string_view oType) {
-  sort(begin(concor), end(concor), [&oType](const auto &wordStat1, const auto wordStat2) {
-    if (oType == "asc") return wordStat1.word < wordStat2.word;
-    if (oType == "desc") return wordStat1.word > wordStat2.word;
-  });
+ist::sort(concordance &concor, string_view fieldName, string_view sortType) {
+
+  string comparatorKey = string(fieldName) + " " + string(sortType);
+
+  if (!comparators.contains(comparatorKey))
+    throw invalid_argument("No algorithm for sort by " + comparatorKey);
+
+  sort(begin(concor), end(concor), comparators[comparatorKey]);
+
   return concor;
-}
-
-concordance &
-sortByCount(concordance &concor, string_view oType) {
-  sort(begin(concor), end(concor), [&oType](const auto &wordStat1, const auto wordStat2) {
-    if (oType == "asc") return wordStat1.count < wordStat2.count;
-    if (oType == "desc") return wordStat1.count > wordStat2.count;
-  });
-  return concor;
-}
-
-concordance &
-sortByFstPosition(concordance &concor, string_view oType) {
-  sort(begin(concor), end(concor), [&oType](const auto &wordStat1, const auto wordStat2) {
-    if (oType == "asc") return wordStat1.fstPosition < wordStat2.fstPosition;
-    if (oType == "desc") return wordStat1.fstPosition > wordStat2.fstPosition;
-  });
-  return concor;
-}
-
-concordance &
-sortByAvgDistance(concordance &concor, string_view oType) {
-  sort(begin(concor), end(concor), [&oType](const auto &wordStat1, const auto wordStat2) {
-    if (oType == "asc") return wordStat1.avgDistance < wordStat2.avgDistance;
-    if (oType == "desc") return wordStat1.avgDistance > wordStat2.avgDistance;
-  });
-  return concor;
-}
-
-//enum class sortType { asc, desc };
-//
-//sortType
-//getSortTypeByName(std::string_view sType) noexcept(false) {
-//  if (sType == "asc") return sortType::asc;
-//  if (sType == "desc") return sortType::desc;
-//  throw invalid_argument(string("Unknown sort type ") + sType.data());
-//}
-//
-//template<typename T>
-//T
-//getFieldByName(std::string_view fieldName) noexcept(false){
-//  if (fieldName == "word") return &wordCharacter::word;
-//  if (fieldName == "count") return &wordCharacter::count;
-//  if (fieldName == "fstPosition") return &wordCharacter::fstPosition;
-//  if (fieldName == "avgDistance") return &wordCharacter::avgDistance;
-//  throw invalid_argument(string("Unknown field name ") + fieldName.data());
-//}
-//
-//template<typename Field, class C = wordCharacter>
-//concordance&
-//sort(concordance& concor, Field C::* field, sortType sType) {
-//  sort(begin(concor), end(concor), [&field, &sType](const auto& wordStat1, const auto wordStat2) {
-//    switch (sType) {
-//      case sortType::asc: return wordStat1.*field < wordStat2.field;
-//      case sortType::desc: return wordStat1.field > wordStat2.field;
-//    }
-//  });
-//  return concor;
-//}
-
-concordance &
-ist::sort(concordance &concor, string_view fieldName, std::string_view sortType) {
-//  return sort(concor, getFieldByName(fieldName), getSortTypeByName(sortType));
-
-  if (fieldName == "word") return sortByWord(concor, sortType);
-  if (fieldName == "count") return sortByCount(concor, sortType);
-  if (fieldName == "fstPosition") return sortByFstPosition(concor, sortType);
-  if (fieldName == "avgDistance") return sortByAvgDistance(concor, sortType);
-  throw invalid_argument(string("Unknown field to sort:") + fieldName.data());
 }

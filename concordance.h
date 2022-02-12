@@ -8,7 +8,7 @@
 namespace ist {
 
   /**
-  * @brief Характеристика для каждого слова текста.
+  * @brief Характеристика для каждого уникального слова текста.
   */
   struct wordCharacter {
     std::string word;        /*!< Слово */
