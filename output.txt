@@ -1,0 +1,4 @@
+abracadabraabracadabraabracadabraabracadabra : {  count:1, fstPosition:8, avgDistance:0 }
+file : {  count:3, fstPosition:2, avgDistance:2 }
+input : {  count:3, fstPosition:1, avgDistance:3 }
+test : {  count:2, fstPosition:0, avgDistance:3 }
