@@ -58,12 +58,12 @@ auto
 parseCommandLineParameters(int argc, const char* argv[]) noexcept(false) {
   commandLineParameters params;
 
-  for_each_n(argv, argc, [&](auto p) {
+  for_each_n(argv, argc, [&](auto p) { // Обработка всех параметров командной строки: O(N)
     string_view param(p);
     auto delimIndex = param.find(paramDelim);
     auto paramName = param.substr(0, delimIndex);
     auto paramValue = delimIndex != string::npos ? param.substr(delimIndex + 1) : "";
-    params[paramName] = paramValue;
+    params[paramName] = paramValue; // Вставка в хэш-таблицу: близко к O(1) если не произойдёт рехэширования.
   });
 
   return params;
@@ -78,7 +78,7 @@ parseCommandLineParameters(int argc, const char* argv[]) noexcept(false) {
 auto
 createInputFile(const auto& params) noexcept(false){
   ifstream inputFile;
-  if (params.contains(srcFilenameParam)) {
+  if (params.contains(srcFilenameParam)) {  // Поиск в хэш-таблице: близко к O(1)
     inputFile.open(params.at(srcFilenameParam).data());
     if (!inputFile) throw invalid_argument(string("Can't open file ") + params.at(srcFilenameParam).data());
   }
@@ -121,14 +121,19 @@ checkParams(const auto& params) noexcept(false){
  * @return Хэш-сет игнорируемых слов.
  */
 auto
-createIgnoreWords(auto params) {
+createIgnoreWordsSet(auto params) {
   unordered_set<string> ignoreWords;
 
   if (!params.contains(wordsIgnoreParam)) return ignoreWords;
 
   istringstream ignoreWordsStream(params[wordsIgnoreParam].data());
   string word;
-  while (ignoreWordsStream >> word) ignoreWords.emplace(word);
+  while (ignoreWordsStream >> word) {
+    // Вставка в хэш-контейнер ~O(1).
+    // emplace - создаёт объект внутри контейнера, предотвращая создание временного объекта.
+    // move - приводит к перемещающему конструированию строки.
+    ignoreWords.emplace(move(word));
+  }
 
   return ignoreWords;
 }
@@ -136,10 +141,10 @@ createIgnoreWords(auto params) {
 int
 main(int argc, const char* argv[]) {
   try {
-    auto params = parseCommandLineParameters(argc, argv);
-    checkParams(params);
+    auto params = parseCommandLineParameters(argc, argv); // O(argc)
+    checkParams(params); // O(1)
 
-    auto ignoreWords = createIgnoreWords(params);
+    auto ignoreWords = createIgnoreWordsSet(params); // O(ignoreWords)
 
     auto inputFile = createInputFile(params);
     auto& src = inputFile.is_open()? inputFile : cin;
@@ -147,9 +152,9 @@ main(int argc, const char* argv[]) {
     ofstream outputFile = createOutputFile(params);
     auto& dst = outputFile.is_open()? outputFile : cout;
 
-    auto result = makeConcordance(src, ignoreWords);
+    auto result = makeConcordance(src, ignoreWords); // O(words)
 
-    sort(result, params[sortFieldParam], params[sortModeParam]);
+    sort(result, params[sortFieldParam], params[sortModeParam]); // ~O(NlogN)
 
     dst << result;
 

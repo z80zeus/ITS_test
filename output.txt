@@ -1,6 +1,4 @@
-{ word:abracadabraabracadabraabracadabraabracadabra,  count:1, fstPosition:12, avgDistance:0 }
-{ word:this,  count:1, fstPosition:0, avgDistance:0 }
-{ word:file,  count:3, fstPosition:4, avgDistance:2 }
-{ word:test,  count:2, fstPosition:2, avgDistance:3 }
-{ word:input,  count:3, fstPosition:3, avgDistance:3 }
-{ word:is,  count:3, fstPosition:1, avgDistance:5 }
+ word:abracadabraabracadabraabracadabraabracadabra  count:1 fstPosition:8 avgDistance:0
+ word:file  count:3 fstPosition:2 avgDistance:2
+ word:input  count:3 fstPosition:1 avgDistance:3
+ word:test  count:2 fstPosition:0 avgDistance:3

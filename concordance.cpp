@@ -60,8 +60,8 @@ static unordered_map<string, function<bool(const wordCharacter&,const wordCharac
  */
 string &
 normaliseWord(std::string &word) {
-  erase_if(word, ::ispunct);
-  transform(cbegin(word), cend(word), begin(word), ::tolower);
+  erase_if(word, ::ispunct);  // Линейная сложность.
+  transform(cbegin(word), cend(word), begin(word), ::tolower);  // Линейная сложность
   return word;
 }
 
@@ -76,19 +76,18 @@ ist::makeConcordance(istream &is, const unordered_set<string> &ignoreWords) {
   string word;
 
   while (is >> word) {
-    word = normaliseWord(
-        word);                 // Нормализация слова: удаление знаков препинания, приведение к нижнему регистру.
+    word = normaliseWord(word);                 // Нормализация слова: удаление знаков препинания, приведение к нижнему регистру.
     if (word.empty()) continue;                 // Слово не прошло нормализацию - не обрабатывается.
-    if (ignoreWords.contains(word)) continue; // Прочитанное слово в списке игнорируемых.
+    if (ignoreWords.contains(word)) continue; // Прочитанное слово в списке игнорируемых. В хэш-таблице сложность поиска - константная.
 
-    if (!concor.contains(word)) {             // Первое появление слова в тексте.
-      concor[word] = {word, 1, currentWordIndex}; // Создать для него запись статистики
+    if (!concor.contains(word)) {             // Первое появление слова в тексте - создать для него статистическую запись.
+      concor[word] = {word, 1, currentWordIndex}; // Сложность добавления в хэш-таблицу - близко к константной если не случится рехэширования.
       wordLastIndex[word] = currentWordIndex;
       ++currentWordIndex;
       continue;
     }
     // Обработка повторного появления слова в потоке:
-    auto &wordCharacter = concor[word];
+    auto &wordCharacter = concor[word]; // Извлечение записи из хэш-таблицы - близко к константе.
     wordCharacter.count++;
     // При чтении текста в поле avgDistance (средняя дистанция) копится сумма дистанций для данного слова.
     // Среднее же значение будет вычислено из этой суммы по завершении обработки текста.
@@ -100,9 +99,10 @@ ist::makeConcordance(istream &is, const unordered_set<string> &ignoreWords) {
 
   // Подготовка возвращаемого значения.
   concordance result;
-  result.reserve(concor.size());  // Для предотвращения реалокаций - заранее зарезервировать ёмкость контейнера.
+  result.reserve(concor.size());  // Для предотвращения реалокаций - заранее зарезервировать нужную ёмкость вектора.
 
   // Для каждого слова вычисляется среднее значение дистанции. Сумма дистанций была накоплена в поле avg_distance.
+  // Итерация по хэш-таблице занимает линейное время.
   for_each(concor.begin(), concor.end(), [&result](auto &wordRecord) {
     auto wordStat = wordRecord.second;
     if (wordStat.count > 2) wordStat.avgDistance /= wordStat.count - 1;
@@ -115,13 +115,13 @@ ist::makeConcordance(istream &is, const unordered_set<string> &ignoreWords) {
 
 ostream &
 ist::operator<<(ostream &os, const concordance &concor) {
+  // Итерация по вектору занимает линейное время.
   for_each(cbegin(concor), cend(concor), [&os](const auto &c) {
-    os << "{" <<
-       " word:" << c.word << ", " <<
-       " count:" << c.count << ", " <<
-       "fstPosition:" << c.fstPosition << ", " <<
-       "avgDistance:" << c.avgDistance <<
-       " }" << endl;
+    os <<
+       " word:" << c.word << " " <<
+       " count:" << c.count << " " <<
+       "fstPosition:" << c.fstPosition << " " <<
+       "avgDistance:" << c.avgDistance << endl;
   });
   return os;
 }
@@ -129,11 +129,12 @@ ist::operator<<(ostream &os, const concordance &concor) {
 concordance &
 ist::sort(concordance &concor, string_view fieldName, string_view sortType) {
 
-  string comparatorKey = string(fieldName) + " " + string(sortType);
+  string comparatorKey = string(fieldName) + " " + string(sortType);  // Ключ доступа к словарю компараторов.
 
   if (!comparators.contains(comparatorKey))
-    throw invalid_argument("No algorithm for sort by " + comparatorKey);
+    throw invalid_argument("No algorithm to sort by " + comparatorKey);
 
+  // Сложность сортировки алгоритмом std::sort равна O(N*log(N))
   sort(begin(concor), end(concor), comparators[comparatorKey]);
 
   return concor;
